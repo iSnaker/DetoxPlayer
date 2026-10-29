@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../api/detox_api.dart';
+import 'groups.dart';
 
 /// Stores the raw library export between launches.
 abstract class LibraryCache {
@@ -99,8 +100,16 @@ class Library extends ChangeNotifier {
     version = parsed.version;
     _tracks = parsed.tracks;
     _byId = {for (final t in parsed.tracks) t.id: t};
+    _albums = null;
+    _artists = null;
     notifyListeners();
   }
+
+  List<Album>? _albums;
+  List<Artist>? _artists;
+
+  List<Album> get albums => _albums ??= buildAlbums(_tracks);
+  List<Artist> get artists => _artists ??= buildArtists(albums);
 
   /// Tracks matching every word of [query] in title, artist, album or path.
   List<Track> search(String query) {

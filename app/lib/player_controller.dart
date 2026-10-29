@@ -272,6 +272,16 @@ class PlayerController extends ChangeNotifier {
     await _start(_index);
   }
 
+  /// Appends to the end of the queue; starts playing when nothing is queued.
+  Future<void> addToQueue(List<Track> tracks) async {
+    if (tracks.isEmpty) return;
+    if (_queue.isEmpty) return playQueue(tracks, 0);
+    _queue.addAll(tracks);
+    _saveQueue();
+    notifyListeners();
+    await _enqueue(_appendAhead);
+  }
+
   Future<void> playShuffled(List<Track> tracks) async {
     if (tracks.isEmpty) return;
     _shuffle = true;

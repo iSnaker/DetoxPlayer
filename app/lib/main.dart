@@ -3,8 +3,8 @@ import 'package:just_audio_background/just_audio_background.dart';
 
 import 'api/connection_store.dart';
 import 'api/detox_api.dart';
-import 'screens/catalog_screen.dart';
 import 'screens/connect_screen.dart';
+import 'screens/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -87,7 +87,7 @@ class _RootState extends State<Root> {
         },
       );
     }
-    return CatalogScreen(
+    return HomeScreen(
       key: ValueKey(api.key),
       api: api,
       onDisconnect: _disconnect,

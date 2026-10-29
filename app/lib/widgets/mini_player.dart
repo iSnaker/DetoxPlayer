@@ -5,9 +5,16 @@ import '../player_controller.dart';
 import 'cover.dart';
 
 class MiniPlayer extends StatelessWidget {
-  const MiniPlayer({super.key, required this.controller});
+  const MiniPlayer({
+    super.key,
+    required this.controller,
+    this.safeBottom = true,
+  });
 
   final PlayerController controller;
+
+  /// False when a navigation bar below already handles the system inset.
+  final bool safeBottom;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -20,6 +27,7 @@ class MiniPlayer extends StatelessWidget {
         elevation: 8,
         child: SafeArea(
           top: false,
+          bottom: safeBottom,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

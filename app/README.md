@@ -38,3 +38,4 @@ longer needed.
 | Battery-optimization behaviour (Huawei kills background services) | not yet verified |
 | Queue, shuffle, repeat, restore after restart | queue, shuffle, repeat verified; restore after restart fixed, re-check by user |
 | Local library cache (whole list in memory, refresh button), windowed queue, shuffle over the whole library | implemented, to be verified by user |
+| Sections (Tracks, Albums, Artists, Playlists stub, Settings), add to queue, albums grid | implemented, to be verified by user |
