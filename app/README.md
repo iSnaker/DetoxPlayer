@@ -30,6 +30,12 @@ longer needed.
 
 ## Device verification status (Android PRA-TL10)
 
+### Run command
+```
+flutter build apk --debug --dart-define-from-file=test_defaults.local.json
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" install -r build\app\outputs\flutter-apk\app-debug.apk
+```
+
 | Check | Status |
 | --- | --- |
 | Connect over public HTTPS, catalog, search, playback, seek | verified |
