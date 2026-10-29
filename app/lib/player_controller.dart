@@ -1,6 +1,7 @@
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 
 import 'api/detox_api.dart';
 
@@ -29,7 +30,21 @@ class PlayerController extends ChangeNotifier {
     notifyListeners();
     try {
       await player.setAudioSource(
-        AudioSource.uri(api.resolve(track.audioUrl), headers: api.headers),
+        AudioSource.uri(
+          api.resolve(track.audioUrl),
+          headers: api.headers,
+          tag: MediaItem(
+            id: track.id,
+            title: track.displayTitle,
+            artist: track.displayArtist,
+            album: track.album.isNotEmpty ? track.album : null,
+            duration: track.duration == null
+                ? null
+                : Duration(milliseconds: (track.duration! * 1000).round()),
+            artUri: api.resolve(track.coverUrl),
+            artHeaders: api.headers,
+          ),
+        ),
       );
       player.play();
     } on Object {

@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 
 import 'api/connection_store.dart';
 import 'api/detox_api.dart';
 import 'screens/catalog_screen.dart';
 import 'screens/connect_screen.dart';
 
-void main() => runApp(const DetoxApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.detox.detox_player.playback',
+    androidNotificationChannelName: 'Воспроизведение',
+    androidNotificationOngoing: true,
+  );
+  runApp(const DetoxApp());
+}
 
 class DetoxApp extends StatelessWidget {
   const DetoxApp({super.key});
