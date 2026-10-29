@@ -27,3 +27,13 @@ The connection screen uses these values as debug defaults. Without the local
 define file, it pre-fills only the local server URL and leaves the key empty.
 Do not use a test key in release builds; revoke it after testing if it is no
 longer needed.
+
+## Device verification status (Android PRA-TL10)
+
+| Check | Status |
+| --- | --- |
+| Connect over public HTTPS, catalog, search, playback, seek | verified |
+| Background playback, notification, lock-screen controls | verified |
+| Headset button control | not yet verified |
+| Battery-optimization behaviour (Huawei kills background services) | not yet verified |
+| Queue, shuffle, repeat, restore after restart | implemented, not yet verified on device |

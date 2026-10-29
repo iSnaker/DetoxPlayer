@@ -28,16 +28,16 @@ class Track {
   });
 
   factory Track.fromJson(Map<String, dynamic> json) => Track(
-        id: json['id'].toString(),
-        title: (json['title'] as String?)?.trim() ?? '',
-        artist: (json['artist'] as String?)?.trim() ?? '',
-        album: (json['album'] as String?)?.trim() ?? '',
-        folder: (json['folder'] as String?) ?? '',
-        filename: (json['filename'] as String?) ?? '',
-        duration: (json['duration'] as num?)?.toDouble(),
-        audioUrl: json['audio_url'] as String,
-        coverUrl: json['cover_url'] as String,
-      );
+    id: json['id'].toString(),
+    title: (json['title'] as String?)?.trim() ?? '',
+    artist: (json['artist'] as String?)?.trim() ?? '',
+    album: (json['album'] as String?)?.trim() ?? '',
+    folder: (json['folder'] as String?) ?? '',
+    filename: (json['filename'] as String?) ?? '',
+    duration: (json['duration'] as num?)?.toDouble(),
+    audioUrl: json['audio_url'] as String,
+    coverUrl: json['cover_url'] as String,
+  );
 
   final String id;
   final String title;
@@ -50,7 +50,20 @@ class Track {
   final String coverUrl;
 
   String get displayTitle => title.isNotEmpty ? title : filename;
-  String get displayArtist => artist.isNotEmpty ? artist : 'Неизвестный исполнитель';
+  String get displayArtist =>
+      artist.isNotEmpty ? artist : 'Неизвестный исполнитель';
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'artist': artist,
+    'album': album,
+    'folder': folder,
+    'filename': filename,
+    'duration': duration,
+    'audio_url': audioUrl,
+    'cover_url': coverUrl,
+  };
 }
 
 class TrackPage {
@@ -62,8 +75,8 @@ class TrackPage {
 
 class DetoxApi {
   DetoxApi(String baseUrl, this.key, {http.Client? client})
-      : baseUri = normalize(baseUrl),
-        _client = client ?? http.Client();
+    : baseUri = normalize(baseUrl),
+      _client = client ?? http.Client();
 
   final Uri baseUri;
   final String key;
@@ -78,7 +91,11 @@ class DetoxApi {
     if (uri.host.isEmpty || (uri.scheme != 'http' && uri.scheme != 'https')) {
       throw ApiException('Некорректный адрес сервера');
     }
-    return Uri(scheme: uri.scheme, host: uri.host, port: uri.hasPort ? uri.port : null);
+    return Uri(
+      scheme: uri.scheme,
+      host: uri.host,
+      port: uri.hasPort ? uri.port : null,
+    );
   }
 
   Uri resolve(String path, [Map<String, String>? query]) {
@@ -86,7 +103,10 @@ class DetoxApi {
     return query == null ? uri : uri.replace(queryParameters: query);
   }
 
-  Future<Map<String, dynamic>> _getJson(String path, [Map<String, String>? query]) async {
+  Future<Map<String, dynamic>> _getJson(
+    String path, [
+    Map<String, String>? query,
+  ]) async {
     final http.Response response;
     try {
       response = await _client
@@ -99,10 +119,16 @@ class DetoxApi {
       throw ApiException('Ключ недействителен или отозван', statusCode: 401);
     }
     if (response.statusCode == 429) {
-      throw ApiException('Слишком много попыток, подождите минуту', statusCode: 429);
+      throw ApiException(
+        'Слишком много попыток, подождите минуту',
+        statusCode: 429,
+      );
     }
     if (response.statusCode != 200) {
-      throw ApiException('Ошибка сервера (${response.statusCode})', statusCode: response.statusCode);
+      throw ApiException(
+        'Ошибка сервера (${response.statusCode})',
+        statusCode: response.statusCode,
+      );
     }
     return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
   }
@@ -112,7 +138,11 @@ class DetoxApi {
     return (data['device'] as Map<String, dynamic>)['name'] as String;
   }
 
-  Future<TrackPage> tracks({String query = '', int offset = 0, int limit = 50}) async {
+  Future<TrackPage> tracks({
+    String query = '',
+    int offset = 0,
+    int limit = 50,
+  }) async {
     final data = await _getJson('/api/v1/tracks', {
       if (query.isNotEmpty) 'q': query,
       'offset': '$offset',

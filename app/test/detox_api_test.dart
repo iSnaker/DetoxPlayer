@@ -7,8 +7,14 @@ import 'package:http/testing.dart';
 
 void main() {
   test('normalize adds scheme and strips path', () {
-    expect(DetoxApi.normalize('192.168.1.5:8081/x').toString(), 'http://192.168.1.5:8081');
-    expect(() => DetoxApi.normalize('ftp://host'), throwsA(isA<ApiException>()));
+    expect(
+      DetoxApi.normalize('192.168.1.5:8081/x').toString(),
+      'http://192.168.1.5:8081',
+    );
+    expect(
+      () => DetoxApi.normalize('ftp://host'),
+      throwsA(isA<ApiException>()),
+    );
   });
 
   test('tracks sends bearer key and parses Russian fields', () async {
@@ -16,22 +22,24 @@ void main() {
     final client = MockClient((request) async {
       seen = request;
       return http.Response.bytes(
-        utf8.encode(jsonEncode({
-          'total': 1,
-          'items': [
-            {
-              'id': 7,
-              'title': '',
-              'artist': null,
-              'album': 'Как Люди',
-              'folder': 'a',
-              'filename': '01.mp3',
-              'duration': 12.5,
-              'audio_url': '/api/v1/tracks/7/audio',
-              'cover_url': '/api/v1/tracks/7/cover',
-            }
-          ],
-        })),
+        utf8.encode(
+          jsonEncode({
+            'total': 1,
+            'items': [
+              {
+                'id': 7,
+                'title': '',
+                'artist': null,
+                'album': 'Как Люди',
+                'folder': 'a',
+                'filename': '01.mp3',
+                'duration': 12.5,
+                'audio_url': '/api/v1/tracks/7/audio',
+                'cover_url': '/api/v1/tracks/7/cover',
+              },
+            ],
+          }),
+        ),
         200,
       );
     });
@@ -44,7 +52,14 @@ void main() {
   });
 
   test('401 is reported as unauthorized', () async {
-    final api = DetoxApi('http://x', 'k', client: MockClient((_) async => http.Response('', 401)));
-    expect(api.deviceName(), throwsA(predicate((e) => e is ApiException && e.unauthorized)));
+    final api = DetoxApi(
+      'http://x',
+      'k',
+      client: MockClient((_) async => http.Response('', 401)),
+    );
+    expect(
+      api.deviceName(),
+      throwsA(predicate((e) => e is ApiException && e.unauthorized)),
+    );
   });
 }
