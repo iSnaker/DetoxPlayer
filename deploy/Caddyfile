@@ -1,4 +1,14 @@
+{
+	auto_https disable_redirects
+}
+
 {$PUBLIC_HOST} {
+	# Сертификат выпускается через TLS-ALPN на порту 443; порт 80 не нужен.
+	tls {
+		issuer acme {
+			disable_http_challenge
+		}
+	}
 	@client path /health /api/v1/*
 	handle @client {
 		reverse_proxy api:8080 {

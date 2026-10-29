@@ -8,15 +8,14 @@
 ## 1. Роутер
 
 Пробросьте на IP этого компьютера в локальной сети (лучше закрепить его за
-компьютером в DHCP) два TCP-порта:
+компьютером в DHCP) один TCP-порт:
 
 | Внешний порт | Внутренний порт |
 | --- | --- |
-| 80 | 80 |
 | 443 | 443 |
 
-Порт 80 нужен для выпуска и продления сертификата Let's Encrypt. Порты 8080 и
-8081 не пробрасывайте.
+Сертификат Let's Encrypt выпускается через TLS-ALPN прямо на 443, порт 80 не
+нужен. Порты 8080 и 8081 не пробрасывайте.
 
 ## 2. Windows Firewall
 
@@ -24,7 +23,7 @@ Docker Desktop обычно открывает опубликованные по
 извне не проходит, создайте правило (PowerShell от администратора):
 
 ```powershell
-New-NetFirewallRule -DisplayName 'DetoxPlayer HTTPS' -Direction Inbound -Protocol TCP -LocalPort 80,443 -Action Allow -Profile Private,Public
+New-NetFirewallRule -DisplayName 'DetoxPlayer HTTPS' -Direction Inbound -Protocol TCP -LocalPort 443 -Action Allow -Profile Private,Public
 ```
 
 ## 3. Запуск
@@ -62,8 +61,9 @@ docker compose -f compose.yaml -f deploy/compose.public.yaml logs caddy
   `docker compose -f compose.yaml -f deploy/compose.public.yaml down`, затем
   `docker compose up -d`.
 
-## Если порт 80 или 443 закрыт провайдером
+## Если порт 443 закрыт провайдером
 
-Выпуск сертификата завершится ошибкой в журнале Caddy. Проверьте порты
-из внешней сети; при блокировке потребуется DNS-challenge DuckDNS с токеном
-или другой порт.
+Выпуск сертификата завершится ошибкой в журнале Caddy. Проверьте порт
+из внешней сети. Нестандартный внешний порт для самого API возможен, но
+сертификат Let's Encrypt тогда придётся выпускать через DNS-challenge DuckDNS
+с токеном (нужен образ Caddy с плагином DNS).

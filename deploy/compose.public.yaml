@@ -12,7 +12,6 @@ services:
     environment:
       PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST in .env}
     ports:
-      - "80:80"
       - "443:443"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
