@@ -1,0 +1,9 @@
+# Optional build-time CA for the managed development environment. Not needed on Windows.
+services:
+  server:
+    build:
+      secrets:
+        - proxy_ca
+secrets:
+  proxy_ca:
+    file: ${CODEX_PROXY_CERT:-/etc/ssl/certs/ca-certificates.crt}
