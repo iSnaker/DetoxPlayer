@@ -1,5 +1,7 @@
 """Client-only ASGI application. Administrative routes are never mounted here."""
+import gzip
 import hashlib
+import json
 import os
 import secrets
 import threading
@@ -146,6 +148,32 @@ def create_app(data_dir=None, roots=None):
         result = library.catalog(q, source_id, folder, offset, limit)
         return {'total': result['total'], 'offset': offset, 'limit': limit,
                 'items': [public_track(t) for t in result['items']]}
+
+    def snapshot():
+        with library.connect() as db:
+            rows = db.execute('''SELECT t.id,t.source_id,s.name AS source_name,t.path,t.folder,t.filename,
+                t.title,t.artist,t.album,t.duration,t.size,t.error
+                FROM tracks t JOIN sources s ON s.id=t.source_id
+                WHERE t.available=1 AND s.active=1 ORDER BY casefold(t.path), t.id''').fetchall()
+        items = [dict(r) for r in rows]
+        body = json.dumps({'items': items}, ensure_ascii=False, separators=(',', ':')).encode()
+        return items, body, hashlib.sha256(body).hexdigest()[:16]
+
+    @app.get('/api/v1/library/version', dependencies=[Depends(authorized)])
+    def library_version():
+        items, _, version = snapshot()
+        return {'version': version, 'total': len(items)}
+
+    @app.get('/api/v1/library/export', dependencies=[Depends(authorized)])
+    def library_export(request: Request):
+        items, _, version = snapshot()
+        body = json.dumps({'version': version, 'total': len(items), 'items': items},
+                          ensure_ascii=False, separators=(',', ':')).encode()
+        headers = {'Vary': 'Accept-Encoding'}
+        if 'gzip' in request.headers.get('accept-encoding', '').lower():
+            body = gzip.compress(body, compresslevel=5, mtime=0)
+            headers['Content-Encoding'] = 'gzip'
+        return Response(body, media_type='application/json', headers=headers)
 
     @app.get('/api/v1/folders', dependencies=[Depends(authorized)])
     def folders(source_id: str | None = None, offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500)):

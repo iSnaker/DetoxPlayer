@@ -70,6 +70,28 @@ def test_client_catalog_and_admin_separation(playback):
     assert api.get('/api/v1/tracks', params={'key': key['key']}).status_code == 401
 
 
+def test_library_export_and_version(playback):
+    api, admin, lib, root, data, audio, content, source, track, key = playback
+    headers = bearer(key)
+    for path in ('/api/v1/library/version', '/api/v1/library/export'):
+        assert api.get(path).status_code == 401
+    version = api.get('/api/v1/library/version', headers=headers).json()
+    assert version['total'] == 1
+    plain = api.get('/api/v1/library/export', headers=headers | {'Accept-Encoding': 'identity'})
+    assert 'content-encoding' not in plain.headers
+    assert plain.json()['version'] == version['version']
+    assert plain.json()['items'][0]['id'] == track
+    assert str(root) not in plain.text
+    zipped = api.get('/api/v1/library/export', headers=headers | {'Accept-Encoding': 'gzip'})
+    assert zipped.headers['content-encoding'] == 'gzip'
+    assert zipped.json() == plain.json()
+    (root / 'Альбом' / '02 Новая.mp3').write_bytes(content)
+    lib.start_scan(None)
+    wait_for_scan(lib)
+    changed = api.get('/api/v1/library/version', headers=headers).json()
+    assert changed['total'] == 2 and changed['version'] != version['version']
+
+
 @pytest.mark.parametrize('requested,start,end', [('bytes=0-99', 0, 99), ('bytes=100-', 100, 16383),
                                                 ('bytes=-100', 16284, 16383), ('bytes=16380-99999', 16380, 16383)])
 def test_ranges(playback, requested, start, end):

@@ -48,6 +48,8 @@ Origin (если есть) и Fetch Metadata; чужой origin отклоняе
 | `GET /api/v1/sources` | `items`: ID, имя, число треков и доступность; без серверных путей |
 | `GET /api/v1/tracks` | Каталог с `q`, `source_id`, `folder`, `offset`, `limit` |
 | `GET /api/v1/folders` | Папки с `source_id`, `offset`, `limit` |
+| `GET /api/v1/library/version` | `{version, total}`: дешёвая проверка, изменилась ли медиатека |
+| `GET /api/v1/library/export` | Вся медиатека одним JSON `{version, total, items}`; при `Accept-Encoding: gzip` ответ сжат |
 | `GET /api/v1/tracks/{id}` | Один доступный трек |
 | `GET`, `HEAD /api/v1/tracks/{id}/audio` | MP3, `audio/mpeg`, Range и валидаторы |
 | `GET`, `HEAD /api/v1/tracks/{id}/cover` | JPEG до 512×512 или заглушка |
