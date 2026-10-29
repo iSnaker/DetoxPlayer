@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
-import '../format.dart';
 import '../player_controller.dart';
 import 'cover.dart';
-import 'equalizer_icon.dart';
+import 'queue_sheet.dart';
+import 'seek_bar.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({
@@ -65,7 +65,18 @@ class MiniPlayer extends StatelessWidget {
                   ),
                 ),
               ),
-              _SeekBar(player: player),
+              if (controller.error != null)
+                TextButton.icon(
+                  onPressed: controller.retry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Повторить'),
+                ),
+              SeekBar(
+                player: player,
+                fallbackTotal: track.duration == null
+                    ? null
+                    : Duration(milliseconds: (track.duration! * 1000).round()),
+              ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -100,79 +111,26 @@ class MiniPlayer extends StatelessWidget {
   );
 }
 
-class _SeekBar extends StatelessWidget {
-  const _SeekBar({required this.player});
-
-  final AudioPlayer player;
-
-  @override
-  Widget build(BuildContext context) => StreamBuilder<Duration>(
-    stream: player.positionStream,
-    builder: (context, position) => StreamBuilder<Duration?>(
-      stream: player.durationStream,
-      builder: (context, duration) {
-        final total = duration.data ?? Duration.zero;
-        final now = position.data ?? Duration.zero;
-        final max = total.inMilliseconds.toDouble();
-        final style = Theme.of(context).textTheme.bodySmall;
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Slider(
-              value: max <= 0
-                  ? 0
-                  : now.inMilliseconds
-                        .clamp(0, total.inMilliseconds)
-                        .toDouble(),
-              max: max <= 0 ? 1 : max,
-              onChanged: max <= 0
-                  ? null
-                  : (v) => player.seek(Duration(milliseconds: v.round())),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(clock(now), style: style),
-                  Text(clock(total), style: style),
-                ],
-              ),
-            ),
-          ],
-        );
-      },
-    ),
-  );
-}
-
 class _PlayButton extends StatelessWidget {
   const _PlayButton({required this.controller});
 
   final PlayerController controller;
 
   @override
-  Widget build(BuildContext context) => StreamBuilder<PlayerState>(
-    stream: controller.player.playerStateStream,
+  Widget build(BuildContext context) => StreamBuilder<bool>(
+    stream: controller.player.playingStream,
+    initialData: controller.player.playing,
     builder: (context, state) {
-      final playing = state.data?.playing ?? false;
-      final buffering =
-          state.data?.processingState == ProcessingState.loading ||
-          state.data?.processingState == ProcessingState.buffering;
+      final playing = state.data ?? false;
       return SizedBox(
         width: 72,
         height: 72,
-        child: buffering && playing
-            ? const Padding(
-                padding: EdgeInsets.all(20),
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : IconButton(
-                tooltip: playing ? 'Пауза' : 'Играть',
-                iconSize: 56,
-                icon: Icon(playing ? Icons.pause : Icons.play_arrow),
-                onPressed: controller.toggle,
-              ),
+        child: IconButton(
+          tooltip: playing ? 'Пауза' : 'Играть',
+          iconSize: 56,
+          icon: Icon(playing ? Icons.pause : Icons.play_arrow),
+          onPressed: controller.toggle,
+        ),
       );
     },
   );
@@ -211,69 +169,4 @@ class _LoopButton extends StatelessWidget {
       onPressed: controller.cycleLoopMode,
     );
   }
-}
-
-class QueueSheet extends StatelessWidget {
-  const QueueSheet({super.key, required this.controller});
-
-  final PlayerController controller;
-
-  @override
-  Widget build(BuildContext context) => DraggableScrollableSheet(
-    expand: false,
-    initialChildSize: 0.6,
-    maxChildSize: 0.9,
-    builder: (context, scroll) => ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        final queue = controller.queue;
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Очередь · ${queue.length}',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                controller: scroll,
-                itemCount: queue.length,
-                itemBuilder: (context, i) {
-                  final track = queue[i];
-                  final selected = i == controller.index;
-                  return ListTile(
-                    selected: selected,
-                    leading: Cover(api: controller.api, track: track, size: 40),
-                    title: Text(
-                      track.displayTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      track.displayArtist,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: selected
-                        ? StreamBuilder<bool>(
-                            stream: controller.player.playingStream,
-                            initialData: controller.player.playing,
-                            builder: (context, playing) => EqualizerIcon(
-                              playing: playing.data ?? false,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          )
-                        : null,
-                    onTap: () => controller.jumpTo(i),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    ),
-  );
 }

@@ -1,3 +1,6 @@
+import '../offline/offline_downloads.dart';
+import '../playlists/playlists.dart';
+
 import 'package:flutter/material.dart';
 
 import '../api/detox_api.dart';
@@ -24,14 +27,27 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late final Library _library = Library(widget.api);
-  late final PlayerController _player = PlayerController(widget.api, _library);
-  late final Services _services = Services(widget.api, _library, _player);
+  late final OfflineDownloads _downloads = OfflineDownloads(widget.api);
+  late final Playlists _playlists = Playlists(widget.api.baseUri.toString());
+  late final PlayerController _player = PlayerController(
+    widget.api,
+    _library,
+    downloads: _downloads,
+  );
+  late final Services _services = Services(
+    widget.api,
+    _library,
+    _player,
+    _downloads,
+    _playlists,
+  );
   int _tab = 0;
 
   @override
   void initState() {
     super.initState();
-    _library.addListener(_checkAuth);
+    _downloads.ready;
+    _playlists.ready;
     _library.loaded.then((_) {
       if (mounted) _library.sync();
     });
@@ -39,14 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _library.removeListener(_checkAuth);
+    _downloads.dispose();
+    _playlists.dispose();
     _player.dispose();
     _library.dispose();
     super.dispose();
-  }
-
-  void _checkAuth() {
-    if (_library.unauthorized) widget.onDisconnect();
   }
 
   @override
@@ -57,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
         TracksPage(services: _services),
         AlbumsPage(services: _services),
         ArtistsPage(services: _services),
-        const PlaylistsPage(),
+        PlaylistsPage(services: _services),
         SettingsPage(services: _services, onDisconnect: widget.onDisconnect),
       ],
     ),

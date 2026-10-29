@@ -1,3 +1,7 @@
+import 'downloads_screen.dart';
+import 'diagnostics_screen.dart';
+import '../widgets/library_actions.dart';
+
 import 'package:flutter/material.dart';
 
 import '../app_services.dart';
@@ -34,7 +38,12 @@ class SettingsPage extends StatelessWidget {
         ],
       ),
     );
-    if (ok == true) onDisconnect();
+    if (ok == true && context.mounted) {
+      await runAction(context, () async {
+        await services.downloads.cancelPending();
+        onDisconnect();
+      });
+    }
   }
 
   @override
@@ -68,6 +77,26 @@ class SettingsPage extends StatelessWidget {
               ),
               enabled: !library.syncing,
               onTap: () => library.sync(force: true),
+            ),
+            ListTile(
+              leading: const Icon(Icons.offline_pin_outlined),
+              title: const Text('Скачанная музыка'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => DownloadsScreen(services: services),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.bug_report_outlined),
+              title: const Text('Журнал диагностики'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const DiagnosticsScreen(),
+                ),
+              ),
             ),
             const Divider(),
             ListTile(

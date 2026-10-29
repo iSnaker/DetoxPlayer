@@ -42,6 +42,19 @@ flutter build apk --debug --dart-define-from-file=test_defaults.local.json
 | Background playback, notification, lock-screen controls | verified |
 | Headset button control | not yet verified |
 | Battery-optimization behaviour (Huawei kills background services) | not yet verified |
-| Queue, shuffle, repeat, restore after restart | queue, shuffle, repeat verified; restore after restart fixed, re-check by user |
+| Queue (current and upcoming tracks only), shuffle, repeat, restore after restart | queue, shuffle, repeat verified; restore after restart fixed, re-check by user |
 | Local library cache (whole list in memory, refresh button), windowed queue, shuffle over the whole library | implemented, to be verified by user |
-| Sections (Tracks, Albums, Artists, Playlists stub, Settings), add to queue, albums grid | implemented, to be verified by user |
+| Sections (Tracks, Albums, Artists, Playlists, Settings), add to queue, albums grid | implemented, to be verified by user |
+
+## Offline, playlists and diagnostics (29 October 2026)
+
+Implemented local playlists and native background downloads for Android/iOS.
+Use the track menu or the album action buttons. Downloads and diagnostic export
+are in Settings. Playback prefers verified local files and can reload a failed
+source using Retry, preserving position. Playlists/downloads are scoped to the
+server and device; cloud sync is not implemented.
+
+Validation: `flutter analyze --no-pub` clean, `flutter test --no-pub` 33 passing
+tests, Android debug APK built without embedded test credentials. Native iOS
+build and background behavior on real phones remain unverified in this change.
+See [device test scenarios and Mac steps](../docs/mobile-validation.md).

@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../diagnostics/diagnostics.dart';
+
 class ApiException implements Exception {
   ApiException(this.message, {this.statusCode});
 
@@ -25,6 +27,8 @@ class Track {
     required this.duration,
     required this.audioUrl,
     required this.coverUrl,
+    this.sourceId = '',
+    this.size = 0,
   });
 
   factory Track.fromJson(Map<String, dynamic> json) => Track(
@@ -39,6 +43,8 @@ class Track {
         (json['audio_url'] as String?) ?? '/api/v1/tracks/${json['id']}/audio',
     coverUrl:
         (json['cover_url'] as String?) ?? '/api/v1/tracks/${json['id']}/cover',
+    sourceId: (json['source_id'] as String?) ?? '',
+    size: (json['size'] as num?)?.toInt() ?? 0,
   );
 
   final String id;
@@ -50,6 +56,21 @@ class Track {
   final double? duration;
   final String audioUrl;
   final String coverUrl;
+  final String sourceId;
+  final int size;
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'artist': artist,
+    'album': album,
+    'folder': folder,
+    'filename': filename,
+    'duration': duration,
+    'audio_url': audioUrl,
+    'cover_url': coverUrl,
+    'source_id': sourceId,
+    'size': size,
+  };
 
   /// Position in the library listing; restores the original order after shuffle.
   int order = 0;
@@ -65,7 +86,9 @@ class Track {
 class DetoxApi {
   DetoxApi(String baseUrl, this.key, {http.Client? client})
     : baseUri = normalize(baseUrl),
-      _client = client ?? http.Client();
+      _client = client ?? http.Client() {
+    Diagnostics.instance.registerSecret(key);
+  }
 
   final Uri baseUri;
   final String key;
@@ -89,6 +112,9 @@ class DetoxApi {
 
   Uri resolve(String path, [Map<String, String>? query]) {
     final uri = baseUri.resolve(path);
+    if (uri.origin != baseUri.origin) {
+      throw ApiException('Недопустимый адрес файла');
+    }
     return query == null ? uri : uri.replace(queryParameters: query);
   }
 
@@ -97,14 +123,26 @@ class DetoxApi {
     Map<String, String>? query,
     Duration timeout = const Duration(seconds: 15),
   }) async {
+    final watch = Stopwatch()..start();
     final http.Response response;
     try {
       response = await _client
           .get(resolve(path, query), headers: headers)
           .timeout(timeout);
-    } on Exception {
+    } on Exception catch (e) {
+      Diagnostics.instance.event('http.error', {
+        'route': path,
+        'ms': watch.elapsedMilliseconds,
+        'type': e.runtimeType,
+        'message': e,
+      });
       throw ApiException('Не удалось подключиться к серверу');
     }
+    Diagnostics.instance.event('http.response', {
+      'route': path,
+      'status': response.statusCode,
+      'ms': watch.elapsedMilliseconds,
+    });
     if (response.statusCode == 401) {
       throw ApiException('Ключ недействителен или отозван', statusCode: 401);
     }
@@ -144,6 +182,29 @@ class DetoxApi {
       timeout: const Duration(seconds: 90),
     );
     return utf8.decode(response.bodyBytes);
+  }
+
+  Future<int> probeAudio(Track track) async {
+    final watch = Stopwatch()..start();
+    try {
+      final result = await _client
+          .head(resolve(track.audioUrl), headers: headers)
+          .timeout(const Duration(seconds: 12));
+      Diagnostics.instance.event('audio.probe', {
+        'track': track.id,
+        'status': result.statusCode,
+        'ms': watch.elapsedMilliseconds,
+      });
+      return result.statusCode;
+    } on Object catch (e) {
+      Diagnostics.instance.event('audio.probe_error', {
+        'track': track.id,
+        'type': e.runtimeType,
+        'message': e,
+        'ms': watch.elapsedMilliseconds,
+      });
+      return 0;
+    }
   }
 
   void close() => _client.close();

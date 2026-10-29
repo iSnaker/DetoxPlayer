@@ -1,3 +1,5 @@
+import '../widgets/library_actions.dart';
+
 import 'package:flutter/material.dart';
 
 import '../app_services.dart';
@@ -82,7 +84,7 @@ class _Header extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 8),
-              Row(
+              Wrap(
                 children: [
                   FilledButton.icon(
                     onPressed: () => services.player.playQueue(album.tracks, 0),
@@ -90,9 +92,49 @@ class _Header extends StatelessWidget {
                     label: const Text('Играть'),
                   ),
                   IconButton(
+                    tooltip: 'Добавить альбом в плейлист',
+                    icon: const Icon(Icons.playlist_add),
+                    onPressed: () =>
+                        addToPlaylist(context, services, album.tracks),
+                  ),
+                  IconButton(
                     tooltip: 'Перемешать',
                     icon: const Icon(Icons.shuffle),
                     onPressed: () => services.player.playShuffled(album.tracks),
+                  ),
+                  ListenableBuilder(
+                    listenable: services.downloads,
+                    builder: (context, _) {
+                      final complete = album.tracks.every(
+                        (t) => services.downloads.localUri(t.id) != null,
+                      );
+                      final loading = album.tracks.any(
+                        (t) => services.downloads.entry(t.id)?.active == true,
+                      );
+                      return IconButton(
+                        tooltip: complete
+                            ? 'Альбом скачан'
+                            : loading
+                            ? 'Альбом скачивается'
+                            : 'Скачать альбом',
+                        icon: Icon(
+                          complete
+                              ? Icons.offline_pin
+                              : loading
+                              ? Icons.downloading
+                              : Icons.download_outlined,
+                        ),
+                        onPressed: complete || loading
+                            ? null
+                            : () => runAction(
+                                context,
+                                () => services.downloads.downloadAll(
+                                  album.tracks,
+                                ),
+                                success: 'Альбом добавлен в загрузки',
+                              ),
+                      );
+                    },
                   ),
                 ],
               ),

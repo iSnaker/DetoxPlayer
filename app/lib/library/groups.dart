@@ -39,7 +39,8 @@ String _lastSegment(String folder) {
 List<Album> buildAlbums(Iterable<Track> tracks) {
   final groups = <String, List<Track>>{};
   for (final track in tracks) {
-    final key = '${track.album.toLowerCase()}\u0000${track.folder}';
+    final key =
+        '${track.sourceId}\u0000${track.album.toLowerCase()}\u0000${track.folder}';
     (groups[key] ??= []).add(track);
   }
   final albums = [

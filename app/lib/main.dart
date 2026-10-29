@@ -1,3 +1,8 @@
+import 'dart:async';
+
+import 'diagnostics/runtime_diagnostics.dart';
+import 'diagnostics/diagnostics.dart';
+
 import 'package:flutter/material.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
@@ -13,6 +18,15 @@ Future<void> main() async {
     androidNotificationChannelName: 'Воспроизведение',
     androidNotificationOngoing: true,
   );
+  final previousError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    Diagnostics.instance.event('flutter.error', {
+      'message': details.exception,
+      'stack': details.stack,
+    });
+    previousError?.call(details);
+  };
+  unawaited(RuntimeDiagnostics.instance.start());
   runApp(const DetoxApp());
 }
 

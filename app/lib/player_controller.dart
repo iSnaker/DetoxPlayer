@@ -1,3 +1,6 @@
+import 'offline/offline_downloads.dart';
+import 'diagnostics/diagnostics.dart';
+
 import 'dart:async';
 import 'dart:collection';
 import 'dart:math';
@@ -15,30 +18,48 @@ import 'player_store.dart';
 /// player only a small window of it around the current track. Shuffle and
 /// repeat-all are done here, over the full queue, not by the player.
 class PlayerController extends ChangeNotifier {
-  PlayerController(this.api, this.library, {PlayerStore? store})
-    : _store = store ?? PlayerStore() {
-    _init();
+  PlayerController(
+    this.api,
+    this.library, {
+    PlayerStore? store,
+    this.downloads,
+    AudioPlayer? audioPlayer,
+    Future<void> Function()? configureSession,
+  }) : _store = store ?? PlayerStore(),
+       player = audioPlayer ?? AudioPlayer(),
+       _configureSession = configureSession ?? _musicSession {
+    ready = _init().catchError(
+      (Object e, StackTrace st) => _onPlaybackError(e, st),
+    );
+  }
+  late final Future<void> ready;
+  final Future<void> Function() _configureSession;
+  static Future<void> _musicSession() async {
+    final session = await AudioSession.instance;
+    await session.configure(const AudioSessionConfiguration.music());
   }
 
-  static const _maxAutoSkips = 3;
+  final OfflineDownloads? downloads;
   static const _ahead = 5;
   static const _behind = 3;
 
   final DetoxApi api;
   final Library library;
   final PlayerStore _store;
-  final AudioPlayer player = AudioPlayer();
+  final AudioPlayer player;
   final List<Track> _queue = [];
   final List<StreamSubscription<Object?>> _subscriptions = [];
   final _random = Random();
   Timer? _saveTimer;
+  Timer? _bufferTimer;
+  Set<String> _localIds = {};
   Future<void> _ops = Future.value();
   int _index = 0;
   int _windowStart = 0;
   int _windowCount = 0;
   int _epoch = 0;
   int _restoreToken = 0;
-  int _errorStreak = 0;
+
   bool _shuffle = false;
   LoopMode _loop = LoopMode.off;
   bool _disposed = false;
@@ -47,6 +68,7 @@ class PlayerController extends ChangeNotifier {
   String? error;
 
   UnmodifiableListView<Track> get queue => UnmodifiableListView(_queue);
+  List<Track> get upcomingQueue => List.unmodifiable(_queue.skip(_index));
   int get index => _index;
   bool get shuffle => _shuffle;
   LoopMode get loop => _loop;
@@ -54,13 +76,32 @@ class PlayerController extends ChangeNotifier {
       _index >= 0 && _index < _queue.length ? _queue[_index] : null;
 
   Future<void> _init() async {
-    final session = await AudioSession.instance;
-    await session.configure(const AudioSessionConfiguration.music());
+    await _configureSession();
+    if (_disposed) return;
+    downloads?.addListener(_downloadsChanged);
     _subscriptions.addAll([
       player.playbackEventStream.listen((_) {}, onError: _onPlaybackError),
       player.currentIndexStream.listen(_onWindowIndex),
       player.playerStateStream.listen((state) {
-        if (state.processingState == ProcessingState.ready) _errorStreak = 0;
+        Diagnostics.instance.event('player.state', {
+          'track': current?.id,
+          'state': state.processingState.name,
+          'playing': state.playing,
+          'positionMs': player.position.inMilliseconds,
+          'bufferedMs': player.bufferedPosition.inMilliseconds,
+          'window': player.sequence.length,
+        });
+        _bufferTimer?.cancel();
+        if (state.playing &&
+            (state.processingState == ProcessingState.loading ||
+                state.processingState == ProcessingState.buffering)) {
+          _bufferTimer = Timer(const Duration(seconds: 25), () {
+            _onPlaybackError(
+              TimeoutException('Buffering exceeded 25 seconds'),
+              StackTrace.current,
+            );
+          });
+        }
         if (!state.playing) _save();
         if (state.processingState == ProcessingState.completed &&
             _loop == LoopMode.all &&
@@ -77,6 +118,18 @@ class PlayerController extends ChangeNotifier {
     await _restore();
   }
 
+  void _downloadsChanged() {
+    final ids = downloads!.items
+        .where((e) => e.status == 'ready')
+        .map((e) => e.track.id)
+        .toSet();
+    if (setEquals(ids, _localIds)) return;
+    _localIds = ids;
+    if (!_disposed && !_restoring && !_busy && _queue.isNotEmpty) {
+      unawaited(_resetWindow());
+    }
+  }
+
   void _onWindowIndex(int? i) {
     if (_restoring || _busy || i == null) return;
     final queueIndex = _windowStart + i;
@@ -88,8 +141,8 @@ class PlayerController extends ChangeNotifier {
   }
 
   AudioSource _source(Track track) => AudioSource.uri(
-    api.resolve(track.audioUrl),
-    headers: api.headers,
+    downloads?.localUri(track.id) ?? api.resolve(track.audioUrl),
+    headers: downloads?.localUri(track.id) == null ? api.headers : null,
     tag: MediaItem(
       id: track.id,
       title: track.displayTitle,
@@ -110,13 +163,24 @@ class PlayerController extends ChangeNotifier {
       if (epoch != _epoch || _disposed) return;
       try {
         await task();
-      } on Object {
-        // The window is best-effort; the next track change retries.
+      } on Object catch (e, st) {
+        _onPlaybackError(e, st);
       }
     });
   }
 
   Future<void> _appendAhead() async {
+    final trim = max(0, _index - _windowStart - _behind);
+    if (trim > 0) {
+      _busy = true;
+      try {
+        await player.removeAudioSourceRange(0, trim);
+        _windowStart += trim;
+        _windowCount -= trim;
+      } finally {
+        _busy = false;
+      }
+    }
     final end = min(_queue.length, _index + _ahead + 1);
     final have = _windowStart + _windowCount;
     if (end <= have) return;
@@ -131,20 +195,31 @@ class PlayerController extends ChangeNotifier {
   }
 
   /// Replaces the player's sources with a window around [index].
-  Future<void> _loadWindow(int index, {Duration? position}) async {
+  Future<bool> _loadWindow(int index, {Duration? position}) async {
     final epoch = ++_epoch;
     await _ops;
-    if (epoch != _epoch || _disposed) return;
+    if (epoch != _epoch || _disposed) return false;
     final start = max(0, index - _behind);
     final end = min(_queue.length, index + _ahead + 1);
     _windowStart = start;
     _windowCount = end - start;
     _index = index;
-    await player.setAudioSources(
-      _queue.sublist(start, end).map(_source).toList(),
-      initialIndex: index - start,
-      initialPosition: position,
-    );
+    Diagnostics.instance.event('player.load', {
+      'track': current?.id,
+      'index': index,
+      'local': current != null && downloads?.localUri(current!.id) != null,
+    });
+    _busy = true;
+    try {
+      await player.setAudioSources(
+        _queue.sublist(start, end).map(_source).toList(),
+        initialIndex: index - start,
+        initialPosition: position,
+      );
+      return epoch == _epoch && !_disposed;
+    } finally {
+      if (epoch == _epoch) _busy = false;
+    }
   }
 
   /// Keeps the playing source and rebuilds everything around it, so changing
@@ -171,8 +246,9 @@ class PlayerController extends ChangeNotifier {
   }
 
   Future<void> _restore() async {
+    final token = _restoreToken;
     await library.loaded;
-    final token = ++_restoreToken;
+    await downloads?.ready;
     final saved = await _store.load();
     if (saved == null ||
         saved.serverUrl != api.baseUri.toString() ||
@@ -184,7 +260,9 @@ class PlayerController extends ChangeNotifier {
     var index = 0;
     var currentSurvived = false;
     for (var i = 0; i < saved.trackIds.length; i++) {
-      final track = library.byId(saved.trackIds[i]);
+      final track =
+          library.byId(saved.trackIds[i]) ??
+          downloads?.localTrack(saved.trackIds[i]);
       if (track == null) continue;
       if (i < saved.index) index = tracks.length + 1;
       if (i == saved.index) {
@@ -236,17 +314,51 @@ class PlayerController extends ChangeNotifier {
     );
   }
 
-  bool get _hasNextInWindow {
-    final k = player.currentIndex;
-    return k != null && k + 1 < player.sequence.length;
+  void _onPlaybackError(Object exception, StackTrace stack) {
+    if (_disposed || exception is PlayerInterruptedException) return;
+    Diagnostics.instance.event('player.error', {
+      'track': current?.id,
+      'code': exception is PlayerException ? exception.code : null,
+      'sourceIndex': exception is PlayerException ? exception.index : null,
+      'message': exception,
+      'stack': stack,
+      'queueIndex': _index,
+      'positionMs': player.position.inMilliseconds,
+      'bufferedMs': player.bufferedPosition.inMilliseconds,
+      'state': player.processingState.name,
+      'local': current != null && downloads?.localUri(current!.id) != null,
+    });
+    error = 'Ошибка загрузки. Нажмите «Повторить»';
+    notifyListeners();
+    final track = current;
+    if (track != null && downloads?.localUri(track.id) == null && !_probing) {
+      _probing = true;
+      api.probeAudio(track).whenComplete(() => _probing = false);
+    }
   }
 
-  void _onPlaybackError(Object _, StackTrace stack) {
-    error = 'Не удалось воспроизвести трек';
+  bool _probing = false;
+  void _play() => unawaited(
+    player.play().catchError(
+      (Object e, StackTrace st) => _onPlaybackError(e, st),
+    ),
+  );
+
+  Future<void> retry() async {
+    if (current == null) return;
+    _userAction();
+    final position = player.position;
+    error = null;
     notifyListeners();
-    if (_errorStreak < _maxAutoSkips && _hasNextInWindow) {
-      _errorStreak++;
-      player.seek(Duration.zero, index: player.currentIndex! + 1);
+    Diagnostics.instance.event('player.retry', {
+      'track': current!.id,
+      'positionMs': position.inMilliseconds,
+    });
+    try {
+      await player.stop();
+      if (await _loadWindow(_index, position: position)) _play();
+    } on Object catch (e, st) {
+      _onPlaybackError(e, st);
     }
   }
 
@@ -260,7 +372,9 @@ class PlayerController extends ChangeNotifier {
   Future<void> playQueue(List<Track> tracks, int index) async {
     if (index < 0 || index >= tracks.length) return;
     _userAction();
-    _errorStreak = 0;
+    final token = _restoreToken;
+    await ready;
+    if (_disposed || token != _restoreToken) return;
     error = null;
     final chosen = tracks[index];
     _queue
@@ -299,6 +413,35 @@ class PlayerController extends ChangeNotifier {
     await _enqueue(_appendAhead);
   }
 
+  /// Removes an entry from the queue. The playing track cannot be removed.
+  Future<void> removeFromQueue(int index) async {
+    if (index < 0 || index >= _queue.length || index == _index) return;
+    _queue.removeAt(index);
+    if (index < _index) _index--;
+    await _queueChanged(index);
+  }
+
+  /// Moves an upcoming track. [to] follows the convention of
+  /// `ReorderableListView.onReorder` (the index before the removal shift).
+  /// Tracks at or before the playing one are never moved, and nothing can be
+  /// dropped in front of the playing track.
+  Future<void> moveInQueue(int from, int to) async {
+    if (from <= _index || from >= _queue.length) return;
+    to = to.clamp(_index + 1, _queue.length - 1);
+    if (to == from) return;
+    _queue.insert(to, _queue.removeAt(from));
+    await _queueChanged(min(from, to));
+  }
+
+  /// Persists the queue; the player window is rebuilt only when the change
+  /// touches tracks it already holds.
+  Future<void> _queueChanged(int firstAffected) async {
+    _saveQueue();
+    _save();
+    notifyListeners();
+    if (firstAffected < _windowStart + _windowCount) await _resetWindow();
+  }
+
   Future<void> playShuffled(List<Track> tracks) async {
     if (tracks.isEmpty) return;
     _shuffle = true;
@@ -309,25 +452,22 @@ class PlayerController extends ChangeNotifier {
 
   Future<void> _start(int index) async {
     try {
-      await _loadWindow(index);
-      player.play();
+      if (await _loadWindow(index)) _play();
     } on PlayerInterruptedException {
       // Superseded by a newer request.
-    } on Object {
-      error = 'Не удалось воспроизвести трек';
-      notifyListeners();
+    } on Object catch (e, st) {
+      _onPlaybackError(e, st);
     }
   }
 
   Future<void> _goTo(int i, {required bool play}) async {
     if (i < 0 || i >= _queue.length) return;
     _userAction();
-    _errorStreak = 0;
     error = null;
     final k = i - _windowStart;
     if (k >= 0 && k < player.sequence.length) {
       await player.seek(Duration.zero, index: k);
-      if (play) player.play();
+      if (play) _play();
     } else {
       _index = i;
       notifyListeners();
@@ -346,13 +486,14 @@ class PlayerController extends ChangeNotifier {
   Future<void> jumpTo(int index) => _goTo(index, play: true);
 
   Future<void> toggle() async {
+    if (error != null) return retry();
     if (player.playing) {
       await player.pause();
     } else if (player.sequence.isEmpty && _queue.isNotEmpty) {
       error = null;
       await _start(_index);
     } else {
-      player.play();
+      _play();
     }
   }
 
@@ -411,6 +552,8 @@ class PlayerController extends ChangeNotifier {
     _save();
     _disposed = true;
     _saveTimer?.cancel();
+    _bufferTimer?.cancel();
+    downloads?.removeListener(_downloadsChanged);
     for (final subscription in _subscriptions) {
       subscription.cancel();
     }
