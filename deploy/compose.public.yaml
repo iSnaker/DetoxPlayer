@@ -1,0 +1,43 @@
+# Public HTTPS access: docker compose -f compose.yaml -f deploy/compose.public.yaml up -d
+# Only the client API is proxied; the admin service is never routed.
+services:
+  api:
+    command: [uvicorn, app.client:create_app, --factory, --host, 0.0.0.0, --port, '8080', --proxy-headers, --forwarded-allow-ips, 172.30.0.10, --no-access-log, --timeout-graceful-shutdown, '30']
+    networks:
+      default:
+      edge:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      edge:
+        ipv4_address: 172.30.0.10
+networks:
+  edge:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+volumes:
+  caddy-data:
+  caddy-config:

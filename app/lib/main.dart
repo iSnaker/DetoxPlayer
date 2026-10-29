@@ -12,15 +12,15 @@ class DetoxApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'DetoxPlayer',
-        theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
-        darkTheme: ThemeData(
-          colorSchemeSeed: Colors.teal,
-          brightness: Brightness.dark,
-          useMaterial3: true,
-        ),
-        home: const Root(),
-      );
+    title: 'DetoxPlayer',
+    theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
+    darkTheme: ThemeData(
+      colorSchemeSeed: Colors.teal,
+      brightness: Brightness.dark,
+      useMaterial3: true,
+    ),
+    home: const Root(),
+  );
 }
 
 class Root extends StatefulWidget {

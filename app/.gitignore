@@ -32,6 +32,7 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+/test_defaults.local.json
 
 # Symbolication related
 app.*.symbols

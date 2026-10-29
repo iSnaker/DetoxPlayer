@@ -1,0 +1,12 @@
+{$PUBLIC_HOST} {
+	@client path /health /api/v1/*
+	handle @client {
+		reverse_proxy api:8080 {
+			flush_interval -1
+		}
+	}
+	handle {
+		respond "Not found" 404
+	}
+	header Strict-Transport-Security "max-age=86400"
+}

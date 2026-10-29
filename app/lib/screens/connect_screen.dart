@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../api/detox_api.dart';
 
+const _testServerUrl = String.fromEnvironment(
+  'DETOX_TEST_SERVER_URL',
+  defaultValue: 'http://127.0.0.1:8081',
+);
+const _testDeviceKey = String.fromEnvironment('DETOX_TEST_DEVICE_KEY');
+
 class ConnectScreen extends StatefulWidget {
   const ConnectScreen({super.key, required this.onConnected, this.initialUrl});
 
@@ -13,8 +19,12 @@ class ConnectScreen extends StatefulWidget {
 }
 
 class _ConnectScreenState extends State<ConnectScreen> {
-  late final _url = TextEditingController(text: widget.initialUrl ?? '');
-  final _key = TextEditingController();
+  late final _url = TextEditingController(
+    text: widget.initialUrl?.isNotEmpty == true
+        ? widget.initialUrl
+        : _testServerUrl,
+  );
+  final _key = TextEditingController(text: _testDeviceKey);
   bool _busy = false;
   String? _error;
 
@@ -45,59 +55,67 @@ class _ConnectScreenState extends State<ConnectScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text('DetoxPlayer', style: Theme.of(context).textTheme.headlineMedium),
-                    const SizedBox(height: 24),
-                    TextField(
-                      controller: _url,
-                      keyboardType: TextInputType.url,
-                      autocorrect: false,
-                      decoration: const InputDecoration(
-                        labelText: 'Адрес сервера',
-                        hintText: 'http://localhost:8081',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _key,
-                      obscureText: true,
-                      autocorrect: false,
-                      enableSuggestions: false,
-                      decoration: const InputDecoration(
-                        labelText: 'Ключ устройства',
-                        border: OutlineInputBorder(),
-                      ),
-                      onSubmitted: (_) => _busy ? null : _connect(),
-                    ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 12),
-                      Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                    ],
-                    const SizedBox(height: 20),
-                    FilledButton(
-                      onPressed: _busy ? null : _connect,
-                      child: _busy
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Подключиться'),
-                    ),
-                  ],
+    body: SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'DetoxPlayer',
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
-              ),
+                const SizedBox(height: 24),
+                TextField(
+                  controller: _url,
+                  keyboardType: TextInputType.url,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Адрес сервера',
+                    hintText: 'http://127.0.0.1:8081',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _key,
+                  obscureText: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Ключ устройства',
+                    border: OutlineInputBorder(),
+                  ),
+                  onSubmitted: (_) => _busy ? null : _connect(),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: _busy ? null : _connect,
+                  child: _busy
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Подключиться'),
+                ),
+              ],
             ),
           ),
         ),
-      );
+      ),
+    ),
+  );
 }

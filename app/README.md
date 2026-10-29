@@ -1,17 +1,29 @@
-# detox_player
+# DetoxPlayer Flutter app
 
-A new Flutter project.
+## Run locally
 
-## Getting Started
+For USB testing on Android, forward the API port from the phone to the computer:
 
-This project is a starting point for a Flutter application.
+```powershell
+adb reverse tcp:8081 tcp:8081
+```
 
-A few resources to get you started if this is your first Flutter project:
+Create `test_defaults.local.json` in this directory with local-only test values:
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```json
+{
+  "DETOX_TEST_SERVER_URL": "http://127.0.0.1:8081",
+  "DETOX_TEST_DEVICE_KEY": "your-device-key"
+}
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+This file is excluded by `.gitignore`. Run the app from this directory:
+
+```powershell
+flutter run -d <device-id> --dart-define-from-file=test_defaults.local.json
+```
+
+The connection screen uses these values as debug defaults. Without the local
+define file, it pre-fills only the local server URL and leaves the key empty.
+Do not use a test key in release builds; revoke it after testing if it is no
+longer needed.
