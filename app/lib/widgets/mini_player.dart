@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../format.dart';
 import '../player_controller.dart';
 import 'cover.dart';
 import 'equalizer_icon.dart';
@@ -32,59 +33,58 @@ class MiniPlayer extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _SeekBar(player: player),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 4, 4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => _showQueue(context),
-                        child: Row(
+              InkWell(
+                onTap: () => _showQueue(context),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Row(
+                    children: [
+                      Cover(api: controller.api, track: track, size: 80),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Cover(api: controller.api, track: track, size: 40),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    track.displayTitle,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    controller.error ?? track.displayArtist,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall,
-                                  ),
-                                ],
-                              ),
+                            Text(
+                              track.displayTitle,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              controller.error ?? track.displayArtist,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodyMedium,
                             ),
                           ],
                         ),
                       ),
-                    ),
-                    _ShuffleButton(controller: controller),
-                    IconButton(
-                      tooltip: 'Предыдущий',
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.skip_previous),
-                      onPressed: controller.previous,
-                    ),
-                    _PlayButton(controller: controller),
-                    IconButton(
-                      tooltip: 'Следующий',
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.skip_next),
-                      onPressed: controller.next,
-                    ),
-                    _LoopButton(controller: controller),
-                  ],
+                    ],
+                  ),
                 ),
+              ),
+              _SeekBar(player: player),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _ShuffleButton(controller: controller),
+                  IconButton(
+                    tooltip: 'Предыдущий',
+                    iconSize: 36,
+                    icon: const Icon(Icons.skip_previous),
+                    onPressed: controller.previous,
+                  ),
+                  _PlayButton(controller: controller),
+                  IconButton(
+                    tooltip: 'Следующий',
+                    iconSize: 36,
+                    icon: const Icon(Icons.skip_next),
+                    onPressed: controller.next,
+                  ),
+                  _LoopButton(controller: controller),
+                ],
               ),
             ],
           ),
@@ -114,14 +114,32 @@ class _SeekBar extends StatelessWidget {
         final total = duration.data ?? Duration.zero;
         final now = position.data ?? Duration.zero;
         final max = total.inMilliseconds.toDouble();
-        return Slider(
-          value: max <= 0
-              ? 0
-              : now.inMilliseconds.clamp(0, total.inMilliseconds).toDouble(),
-          max: max <= 0 ? 1 : max,
-          onChanged: max <= 0
-              ? null
-              : (v) => player.seek(Duration(milliseconds: v.round())),
+        final style = Theme.of(context).textTheme.bodySmall;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Slider(
+              value: max <= 0
+                  ? 0
+                  : now.inMilliseconds
+                        .clamp(0, total.inMilliseconds)
+                        .toDouble(),
+              max: max <= 0 ? 1 : max,
+              onChanged: max <= 0
+                  ? null
+                  : (v) => player.seek(Duration(milliseconds: v.round())),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(clock(now), style: style),
+                  Text(clock(total), style: style),
+                ],
+              ),
+            ),
+          ],
         );
       },
     ),
@@ -142,15 +160,16 @@ class _PlayButton extends StatelessWidget {
           state.data?.processingState == ProcessingState.loading ||
           state.data?.processingState == ProcessingState.buffering;
       return SizedBox(
-        width: 48,
-        height: 48,
+        width: 72,
+        height: 72,
         child: buffering && playing
             ? const Padding(
-                padding: EdgeInsets.all(12),
+                padding: EdgeInsets.all(20),
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : IconButton(
                 tooltip: playing ? 'Пауза' : 'Играть',
+                iconSize: 56,
                 icon: Icon(playing ? Icons.pause : Icons.play_arrow),
                 onPressed: controller.toggle,
               ),
@@ -167,7 +186,6 @@ class _ShuffleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => IconButton(
     tooltip: 'Перемешать',
-    visualDensity: VisualDensity.compact,
     isSelected: controller.shuffle,
     icon: const Icon(Icons.shuffle),
     onPressed: controller.toggleShuffle,
@@ -188,7 +206,6 @@ class _LoopButton extends StatelessWidget {
         LoopMode.all => 'Повторять очередь',
         LoopMode.one => 'Повторять трек',
       },
-      visualDensity: VisualDensity.compact,
       isSelected: mode != LoopMode.off,
       icon: Icon(mode == LoopMode.one ? Icons.repeat_one : Icons.repeat),
       onPressed: controller.cycleLoopMode,
