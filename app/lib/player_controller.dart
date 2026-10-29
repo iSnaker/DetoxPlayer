@@ -27,6 +27,7 @@ class PlayerController extends ChangeNotifier {
   int _epoch = 0;
   int _errorStreak = 0;
   bool _disposed = false;
+  bool _restoring = false;
   String? error;
 
   List<Track> get queue => List.unmodifiable(_queue);
@@ -40,7 +41,9 @@ class PlayerController extends ChangeNotifier {
     _subscriptions.addAll([
       player.playbackEventStream.listen((_) {}, onError: _onPlaybackError),
       player.currentIndexStream.listen((i) {
-        if (i == null || i == _index || i >= _queue.length) return;
+        if (_restoring || i == null || i == _index || i >= _queue.length) {
+          return;
+        }
         _index = i;
         notifyListeners();
         _save();
@@ -88,11 +91,11 @@ class PlayerController extends ChangeNotifier {
       ..addAll(saved.tracks);
     _queueKey = null;
     _index = saved.index;
+    _restoring = true;
     notifyListeners();
     try {
       await player.setAudioSources(
         _queue.map(_source).toList(),
-        preload: false,
         initialIndex: saved.index,
         initialPosition: Duration(milliseconds: saved.positionMs),
       );
@@ -106,11 +109,13 @@ class PlayerController extends ChangeNotifier {
       }
     } on Object {
       // A failed restore must not block normal playback.
+    } finally {
+      if (epoch == _epoch) _restoring = false;
     }
   }
 
   void _save() {
-    if (_disposed || current == null) return;
+    if (_disposed || _restoring || current == null) return;
     _store.save(
       SavedPlayback(
         serverUrl: api.baseUri.toString(),
@@ -136,6 +141,7 @@ class PlayerController extends ChangeNotifier {
   /// of the same list can be appended with [extendQueue].
   Future<void> playQueue(List<Track> tracks, int index, {String? key}) async {
     _epoch++;
+    _restoring = false;
     _errorStreak = 0;
     _queue
       ..clear()

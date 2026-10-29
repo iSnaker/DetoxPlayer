@@ -36,4 +36,4 @@ longer needed.
 | Background playback, notification, lock-screen controls | verified |
 | Headset button control | not yet verified |
 | Battery-optimization behaviour (Huawei kills background services) | not yet verified |
-| Queue, shuffle, repeat, restore after restart | implemented, not yet verified on device |
+| Queue, shuffle, repeat, restore after restart | queue, shuffle, repeat verified; restore after restart fixed, re-check by user |
