@@ -272,6 +272,23 @@ class PlayerController extends ChangeNotifier {
     await _start(_index);
   }
 
+  /// Inserts right after the current track; starts playing when nothing is queued.
+  Future<void> playNext(List<Track> tracks) async {
+    if (tracks.isEmpty) return;
+    if (_queue.isEmpty) return playQueue(tracks, 0);
+    _queue.insertAll(_index + 1, tracks);
+    _saveQueue();
+    notifyListeners();
+    await _enqueue(() async {
+      final k = player.currentIndex;
+      if (k == null) return;
+      final count = player.sequence.length;
+      if (k + 1 < count) await player.removeAudioSourceRange(k + 1, count);
+      _windowCount = k + 1;
+      await _appendAhead();
+    });
+  }
+
   /// Appends to the end of the queue; starts playing when nothing is queued.
   Future<void> addToQueue(List<Track> tracks) async {
     if (tracks.isEmpty) return;

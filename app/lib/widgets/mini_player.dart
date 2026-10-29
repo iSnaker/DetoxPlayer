@@ -3,6 +3,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../player_controller.dart';
 import 'cover.dart';
+import 'equalizer_icon.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({
@@ -238,7 +239,16 @@ class QueueSheet extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    trailing: selected ? const Icon(Icons.equalizer) : null,
+                    trailing: selected
+                        ? StreamBuilder<bool>(
+                            stream: controller.player.playingStream,
+                            initialData: controller.player.playing,
+                            builder: (context, playing) => EqualizerIcon(
+                              playing: playing.data ?? false,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          )
+                        : null,
                     onTap: () => controller.jumpTo(i),
                   );
                 },
