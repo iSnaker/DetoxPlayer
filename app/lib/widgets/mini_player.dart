@@ -156,15 +156,12 @@ class _ShuffleButton extends StatelessWidget {
   final PlayerController controller;
 
   @override
-  Widget build(BuildContext context) => StreamBuilder<bool>(
-    stream: controller.player.shuffleModeEnabledStream,
-    builder: (context, snapshot) => IconButton(
-      tooltip: 'Перемешать',
-      visualDensity: VisualDensity.compact,
-      isSelected: snapshot.data ?? false,
-      icon: const Icon(Icons.shuffle),
-      onPressed: controller.toggleShuffle,
-    ),
+  Widget build(BuildContext context) => IconButton(
+    tooltip: 'Перемешать',
+    visualDensity: VisualDensity.compact,
+    isSelected: controller.shuffle,
+    icon: const Icon(Icons.shuffle),
+    onPressed: controller.toggleShuffle,
   );
 }
 
@@ -174,23 +171,20 @@ class _LoopButton extends StatelessWidget {
   final PlayerController controller;
 
   @override
-  Widget build(BuildContext context) => StreamBuilder<LoopMode>(
-    stream: controller.player.loopModeStream,
-    builder: (context, snapshot) {
-      final mode = snapshot.data ?? LoopMode.off;
-      return IconButton(
-        tooltip: switch (mode) {
-          LoopMode.off => 'Повтор выключен',
-          LoopMode.all => 'Повторять очередь',
-          LoopMode.one => 'Повторять трек',
-        },
-        visualDensity: VisualDensity.compact,
-        isSelected: mode != LoopMode.off,
-        icon: Icon(mode == LoopMode.one ? Icons.repeat_one : Icons.repeat),
-        onPressed: controller.cycleLoopMode,
-      );
-    },
-  );
+  Widget build(BuildContext context) {
+    final mode = controller.loop;
+    return IconButton(
+      tooltip: switch (mode) {
+        LoopMode.off => 'Повтор выключен',
+        LoopMode.all => 'Повторять очередь',
+        LoopMode.one => 'Повторять трек',
+      },
+      visualDensity: VisualDensity.compact,
+      isSelected: mode != LoopMode.off,
+      icon: Icon(mode == LoopMode.one ? Icons.repeat_one : Icons.repeat),
+      onPressed: controller.cycleLoopMode,
+    );
+  }
 }
 
 class QueueSheet extends StatelessWidget {

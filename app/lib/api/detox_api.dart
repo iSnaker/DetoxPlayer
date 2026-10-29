@@ -35,8 +35,10 @@ class Track {
     folder: (json['folder'] as String?) ?? '',
     filename: (json['filename'] as String?) ?? '',
     duration: (json['duration'] as num?)?.toDouble(),
-    audioUrl: json['audio_url'] as String,
-    coverUrl: json['cover_url'] as String,
+    audioUrl:
+        (json['audio_url'] as String?) ?? '/api/v1/tracks/${json['id']}/audio',
+    coverUrl:
+        (json['cover_url'] as String?) ?? '/api/v1/tracks/${json['id']}/cover',
   );
 
   final String id;
@@ -49,28 +51,15 @@ class Track {
   final String audioUrl;
   final String coverUrl;
 
+  /// Position in the library listing; restores the original order after shuffle.
+  int order = 0;
+
+  late final String haystack = '$title $artist $album $folder $filename'
+      .toLowerCase();
+
   String get displayTitle => title.isNotEmpty ? title : filename;
   String get displayArtist =>
       artist.isNotEmpty ? artist : 'Неизвестный исполнитель';
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'artist': artist,
-    'album': album,
-    'folder': folder,
-    'filename': filename,
-    'duration': duration,
-    'audio_url': audioUrl,
-    'cover_url': coverUrl,
-  };
-}
-
-class TrackPage {
-  TrackPage(this.total, this.items);
-
-  final int total;
-  final List<Track> items;
 }
 
 class DetoxApi {
@@ -103,15 +92,16 @@ class DetoxApi {
     return query == null ? uri : uri.replace(queryParameters: query);
   }
 
-  Future<Map<String, dynamic>> _getJson(
-    String path, [
+  Future<http.Response> _get(
+    String path, {
     Map<String, String>? query,
-  ]) async {
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
     final http.Response response;
     try {
       response = await _client
           .get(resolve(path, query), headers: headers)
-          .timeout(const Duration(seconds: 15));
+          .timeout(timeout);
     } on Exception {
       throw ApiException('Не удалось подключиться к серверу');
     }
@@ -130,6 +120,11 @@ class DetoxApi {
         statusCode: response.statusCode,
       );
     }
+    return response;
+  }
+
+  Future<Map<String, dynamic>> _getJson(String path) async {
+    final response = await _get(path);
     return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
   }
 
@@ -138,20 +133,17 @@ class DetoxApi {
     return (data['device'] as Map<String, dynamic>)['name'] as String;
   }
 
-  Future<TrackPage> tracks({
-    String query = '',
-    int offset = 0,
-    int limit = 50,
-  }) async {
-    final data = await _getJson('/api/v1/tracks', {
-      if (query.isNotEmpty) 'q': query,
-      'offset': '$offset',
-      'limit': '$limit',
-    });
-    final items = (data['items'] as List)
-        .map((e) => Track.fromJson(e as Map<String, dynamic>))
-        .toList();
-    return TrackPage(data['total'] as int, items);
+  Future<String> libraryVersion() async {
+    final data = await _getJson('/api/v1/library/version');
+    return data['version'] as String;
+  }
+
+  Future<String> libraryExport() async {
+    final response = await _get(
+      '/api/v1/library/export',
+      timeout: const Duration(seconds: 90),
+    );
+    return utf8.decode(response.bodyBytes);
   }
 
   void close() => _client.close();

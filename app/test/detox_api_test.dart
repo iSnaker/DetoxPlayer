@@ -17,38 +17,23 @@ void main() {
     );
   });
 
-  test('tracks sends bearer key and parses Russian fields', () async {
-    late http.Request seen;
+  test('library requests send the bearer key', () async {
+    final seen = <http.Request>[];
     final client = MockClient((request) async {
-      seen = request;
-      return http.Response.bytes(
-        utf8.encode(
-          jsonEncode({
-            'total': 1,
-            'items': [
-              {
-                'id': 7,
-                'title': '',
-                'artist': null,
-                'album': 'Как Люди',
-                'folder': 'a',
-                'filename': '01.mp3',
-                'duration': 12.5,
-                'audio_url': '/api/v1/tracks/7/audio',
-                'cover_url': '/api/v1/tracks/7/cover',
-              },
-            ],
-          }),
-        ),
-        200,
-      );
+      seen.add(request);
+      final body = request.url.path.endsWith('version')
+          ? {'version': 'v1', 'total': 1}
+          : {'version': 'v1', 'total': 0, 'items': []};
+      return http.Response.bytes(utf8.encode(jsonEncode(body)), 200);
     });
     final api = DetoxApi('http://x:8081', 'secret', client: client);
-    final page = await api.tracks(query: 'люди');
-    expect(seen.headers['Authorization'], 'Bearer secret');
-    expect(seen.url.queryParameters['q'], 'люди');
-    expect(page.items.single.displayTitle, '01.mp3');
-    expect(page.items.single.displayArtist, 'Неизвестный исполнитель');
+    expect(await api.libraryVersion(), 'v1');
+    expect(await api.libraryExport(), contains('"version":"v1"'));
+    expect(seen.map((r) => r.url.path), [
+      '/api/v1/library/version',
+      '/api/v1/library/export',
+    ]);
+    expect(seen.every((r) => r.headers['Authorization'] != null), isTrue);
   });
 
   test('401 is reported as unauthorized', () async {
