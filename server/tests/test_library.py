@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from mutagen.id3 import ID3, TALB, TIT2, TPE1
 
-from app.library import Library, LibraryError
+from app.library import Library, LibraryError, readable_tag
 from conftest import login, wait_for_scan
 
 
@@ -197,3 +197,37 @@ def test_folders_and_pagination(environment):
     assert len(result['items']) == 2
     assert {f['folder'] for f in result['folders']} == {'.', 'album', 'empty'}
     assert client.get('/admin/tracks?offset=-1').status_code == 422
+
+
+def test_legacy_cyrillic_tags_are_read_without_changing_file(environment, monkeypatch):
+    client, lib, root, data = environment
+    login(client, data)
+    folder = root / 'Animal ДжаZ' / '[2004] Как Люди'
+    folder.mkdir(parents=True)
+    file = folder / '01. Полиэтилен.mp3'
+    tags = ID3()
+    for frame, text in ((TIT2, 'Полиэтилен'), (TPE1, 'Animal ДжаZ'), (TALB, 'Как Люди')):
+        tags.add(frame(encoding=0, text=text.encode('cp1251').decode('latin1')))
+    tags.save(file)
+    original_bytes = file.read_bytes()
+    from mutagen.easyid3 import EasyID3
+    class Audio(dict):
+        info = type('Info', (), {'length': 12.5})()
+    monkeypatch.setattr('app.library.File', lambda path, easy: Audio(EasyID3(path)))
+    add(client, lib, root)
+    track = lib.catalog()['items'][0]
+    assert (track['title'], track['artist'], track['album']) == ('Полиэтилен', 'Animal ДжаZ', 'Как Люди')
+    assert lib.catalog('ПОЛИЭТИЛЕН')['total'] == 1
+    assert file.read_bytes() == original_bytes
+
+
+@pytest.mark.parametrize('text,path', [
+    ('Beyoncé', '/music/Beyoncé/01.mp3'),
+    ('Motörhead', '/music/Motörhead/01.mp3'),
+    ('Été', '/music/Été.mp3'),
+    ('Песня', '/music/Песня.mp3'),
+    ('Ïîëèýòèëåí', '/music/01.mp3'),
+    ('Live', '/music/Live.mp3'),
+])
+def test_tag_recovery_preserves_valid_or_ambiguous_text(text, path):
+    assert readable_tag(text, Path(path)) == text

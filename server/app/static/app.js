@@ -108,6 +108,7 @@ async function loadKeys() {
   for(const key of keys) {
     const row=node('div',undefined,'key-row'), info=node('div',undefined,'row-info');
     info.append(node('strong',key.name),node('small',`${new Date(key.created_at).toLocaleString('ru')} · ${key.revoked_at?'Отозван':'Активен'}`)); row.append(info);
+    info.append(node('small', key.last_used_at ? 'Последний доступ: ' + new Date(key.last_used_at).toLocaleString('ru') : 'Ещё не использовался'));
     if(!key.revoked_at) row.append(button('Отозвать',async()=>{
       if(!confirm(`Отозвать ключ «${key.name}»?`)) return;
       await api(`/admin/keys/${key.id}`,{method:'DELETE'}); await loadKeys();

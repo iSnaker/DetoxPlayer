@@ -22,8 +22,32 @@ class SourceRemoved(Exception):
     pass
 
 
+def readable_tag(value: str, path: Path) -> str:
+    """Recover legacy CP1251 bytes mislabeled as Latin-1, only with path evidence.
+
+    Never rewrite audio tags or guess from Cyrillic-looking output alone: legitimate
+    accented Latin text can also decode as CP1251. The entire recovered tag must
+    occur in a filename or directory component, ignoring punctuation and case.
+    """
+    def normalized(text):
+        return ''.join(c for c in text.casefold() if c.isalnum())
+
+    evidence = [normalized(part) for part in path.parts]
+    for encoding in ('latin1', 'cp1252'):
+        try:
+            candidate = value.encode(encoding).decode('cp1251')
+        except UnicodeError:
+            continue
+        if candidate == value or sum('а' <= c <= 'я' or c == 'ё' for c in candidate.casefold()) < 3:
+            continue
+        match = normalized(candidate)
+        if any(match in part for part in evidence):
+            return candidate
+    return value
+
+
 class Library:
-    def __init__(self, data: Path, roots: list[Path]):
+    def __init__(self, data: Path, roots: list[Path], *, recover_scans=True):
         data.mkdir(parents=True, exist_ok=True)
         self.database = data / 'library.sqlite3'
         self.roots = [p.resolve() for p in roots]
@@ -59,8 +83,20 @@ class Library:
                     id TEXT PRIMARY KEY, name TEXT NOT NULL, digest TEXT NOT NULL,
                     created_at TEXT NOT NULL, revoked_at TEXT
                 );
+                CREATE INDEX IF NOT EXISTS access_keys_digest ON access_keys(digest);
+                CREATE TABLE IF NOT EXISTS key_usage (
+                    key_id TEXT PRIMARY KEY REFERENCES access_keys(id), last_used_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS client_sessions (
+                    digest TEXT PRIMARY KEY, key_id TEXT NOT NULL REFERENCES access_keys(id),
+                    expires_at REAL NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS client_sessions_key ON client_sessions(key_id);
             ''')
-            db.execute("UPDATE scans SET status='interrupted', finished_at=? WHERE status='running'", (now(),))
+            # Only the scanner process owns recovery. Starting the separate client API
+            # must not mark a live administrative scan as interrupted.
+            if recover_scans:
+                db.execute("UPDATE scans SET status='interrupted', finished_at=? WHERE status='running'", (now(),))
 
     @contextmanager
     def connect(self):
@@ -170,7 +206,7 @@ class Library:
             for field in ('title', 'artist', 'album'):
                 tag = audio.get(field, [])
                 if tag and str(tag[0]).strip():
-                    values[field] = str(tag[0]).strip()
+                    values[field] = readable_tag(str(tag[0]).strip(), path)
             values['duration'] = audio.info.length
         except Exception:
             values['error'] = 'Не удалось прочитать MP3 или его теги'

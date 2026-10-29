@@ -169,7 +169,8 @@ def create_app(data_dir=None, roots=None):
     @app.get('/admin/keys', dependencies=[Depends(admin)])
     def keys():
         with library.connect() as db:
-            return [dict(r) for r in db.execute('SELECT id,name,created_at,revoked_at FROM access_keys ORDER BY created_at DESC')]
+            return [dict(r) for r in db.execute('''SELECT k.id,k.name,k.created_at,k.revoked_at,u.last_used_at
+                FROM access_keys k LEFT JOIN key_usage u ON u.key_id=k.id ORDER BY k.created_at DESC''')]
 
     @app.post('/admin/keys', dependencies=[Depends(admin)], status_code=201)
     def create_key(payload: KeyInput):
@@ -186,6 +187,7 @@ def create_app(data_dir=None, roots=None):
             row = db.execute('UPDATE access_keys SET revoked_at=COALESCE(revoked_at,?) WHERE id=?', (now(), key_id))
             if not row.rowcount:
                 raise HTTPException(404, 'Ключ не найден.')
+            db.execute('DELETE FROM client_sessions WHERE key_id=?', (key_id,))
         return {'ok': True}
 
     app.mount('/static', StaticFiles(directory=STATIC), name='static')
