@@ -1,4 +1,4 @@
-package com.detox.detox_player
+package com.snapix.detoxplayer
 
 import com.ryanheise.audioservice.AudioServiceActivity
 

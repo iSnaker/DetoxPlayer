@@ -1,3 +1,5 @@
+import '../design/brand.dart';
+
 import 'package:flutter/material.dart';
 
 import '../app_services.dart';
@@ -11,8 +13,9 @@ class PlaylistsPage extends StatelessWidget {
   final Services services;
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Плейлисты'),
+    appBar: libraryAppBar(
+      context,
+      'Плейлисты',
       actions: [
         IconButton(
           tooltip: 'Создать плейлист',

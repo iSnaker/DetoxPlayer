@@ -1,3 +1,5 @@
+import '../design/brand.dart';
+
 import 'package:flutter/material.dart';
 
 import '../api/detox_api.dart';
@@ -64,9 +66,33 @@ class _ConnectScreenState extends State<ConnectScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const Center(child: BrandMark(size: 140)),
+                const SizedBox(height: 28),
                 Text(
-                  'DetoxPlayer',
-                  style: Theme.of(context).textTheme.headlineMedium,
+                  'Detox Player',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineLarge
+                      ?.copyWith(fontSize: 38),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Музыка. И ничего лишнего.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 40),
+                Text(
+                  'Ваше тихое место',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Подключите свою медиатеку и оставьте шум снаружи.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 TextField(
@@ -76,7 +102,6 @@ class _ConnectScreenState extends State<ConnectScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Адрес сервера',
                     hintText: 'http://127.0.0.1:8081',
-                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -87,7 +112,6 @@ class _ConnectScreenState extends State<ConnectScreen> {
                   enableSuggestions: false,
                   decoration: const InputDecoration(
                     labelText: 'Ключ устройства',
-                    border: OutlineInputBorder(),
                   ),
                   onSubmitted: (_) => _busy ? null : _connect(),
                 ),
@@ -109,7 +133,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Подключиться'),
+                      : const Text('Открыть мою музыку'),
                 ),
               ],
             ),

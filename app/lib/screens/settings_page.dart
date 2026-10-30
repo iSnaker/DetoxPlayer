@@ -1,3 +1,4 @@
+import '../design/brand.dart';
 import 'downloads_screen.dart';
 import 'diagnostics_screen.dart';
 import '../widgets/library_actions.dart';
@@ -50,7 +51,7 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final library = services.library;
     return Scaffold(
-      appBar: AppBar(title: const Text('Настройки')),
+      appBar: libraryAppBar(context, 'Настройки'),
       body: ListenableBuilder(
         listenable: library,
         builder: (context, _) => ListView(

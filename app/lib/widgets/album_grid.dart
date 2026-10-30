@@ -33,13 +33,15 @@ class AlbumGrid extends StatelessWidget {
       slivers: [
         if (header != null) SliverToBoxAdapter(child: header),
         SliverPadding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
           sliver: SliverGrid.builder(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: albumColumns(constraints.maxWidth),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.78,
+              mainAxisSpacing: 24,
+              crossAxisSpacing: 18,
+              childAspectRatio: MediaQuery.textScalerOf(context).scale(14) > 20
+                  ? 0.60
+                  : 0.74,
             ),
             itemCount: albums.length,
             itemBuilder: (context, i) => _AlbumCard(
@@ -67,7 +69,7 @@ class _AlbumCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => InkWell(
-    borderRadius: BorderRadius.circular(8),
+    borderRadius: BorderRadius.circular(18),
     onTap: onTap,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,7 +84,7 @@ class _AlbumCard extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 10),
         Text(
           album.title,
           maxLines: 1,

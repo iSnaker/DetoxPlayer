@@ -55,91 +55,108 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.all(16),
-    child: Row(
+    child: Column(
       children: [
-        SizedBox(
-          width: 120,
-          height: 120,
-          child: Cover(
-            api: services.api,
-            track: album.cover,
-            size: 120,
-            expand: true,
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 290),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.secondary
+                          .withValues(alpha: 0.14),
+                      blurRadius: 28,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: Cover(
+                  api: services.api,
+                  track: album.cover,
+                  size: 290,
+                  expand: true,
+                ),
+              ),
+            ),
           ),
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                album.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              Text(album.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
-              Text(
-                tracksText(album.tracks.length),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                children: [
-                  FilledButton.icon(
-                    onPressed: () => services.player.playQueue(album.tracks, 0),
-                    icon: const Icon(Icons.play_arrow),
-                    label: const Text('Играть'),
+        const SizedBox(height: 24),
+        Text(
+          album.title,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineSmall
+              ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.5),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          album.artist,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(color: Theme.of(context).colorScheme.primary),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          tracksText(album.tracks.length),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 18),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilledButton.icon(
+              onPressed: () => services.player.playQueue(album.tracks, 0),
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Играть'),
+            ),
+            IconButton(
+              tooltip: 'Добавить альбом в плейлист',
+              icon: const Icon(Icons.playlist_add),
+              onPressed: () => addToPlaylist(context, services, album.tracks),
+            ),
+            IconButton(
+              tooltip: 'Перемешать',
+              icon: const Icon(Icons.shuffle),
+              onPressed: () => services.player.playShuffled(album.tracks),
+            ),
+            ListenableBuilder(
+              listenable: services.downloads,
+              builder: (context, _) {
+                final complete = album.tracks.every(
+                  (t) => services.downloads.localUri(t.id) != null,
+                );
+                final loading = album.tracks.any(
+                  (t) => services.downloads.entry(t.id)?.active == true,
+                );
+                return IconButton(
+                  tooltip: complete
+                      ? 'Альбом скачан'
+                      : loading
+                      ? 'Альбом скачивается'
+                      : 'Скачать альбом',
+                  icon: Icon(
+                    complete
+                        ? Icons.offline_pin
+                        : loading
+                        ? Icons.downloading
+                        : Icons.download_outlined,
                   ),
-                  IconButton(
-                    tooltip: 'Добавить альбом в плейлист',
-                    icon: const Icon(Icons.playlist_add),
-                    onPressed: () =>
-                        addToPlaylist(context, services, album.tracks),
-                  ),
-                  IconButton(
-                    tooltip: 'Перемешать',
-                    icon: const Icon(Icons.shuffle),
-                    onPressed: () => services.player.playShuffled(album.tracks),
-                  ),
-                  ListenableBuilder(
-                    listenable: services.downloads,
-                    builder: (context, _) {
-                      final complete = album.tracks.every(
-                        (t) => services.downloads.localUri(t.id) != null,
-                      );
-                      final loading = album.tracks.any(
-                        (t) => services.downloads.entry(t.id)?.active == true,
-                      );
-                      return IconButton(
-                        tooltip: complete
-                            ? 'Альбом скачан'
-                            : loading
-                            ? 'Альбом скачивается'
-                            : 'Скачать альбом',
-                        icon: Icon(
-                          complete
-                              ? Icons.offline_pin
-                              : loading
-                              ? Icons.downloading
-                              : Icons.download_outlined,
+                  onPressed: complete || loading
+                      ? null
+                      : () => runAction(
+                          context,
+                          () => services.downloads.downloadAll(album.tracks),
+                          success: 'Альбом добавлен в загрузки',
                         ),
-                        onPressed: complete || loading
-                            ? null
-                            : () => runAction(
-                                context,
-                                () => services.downloads.downloadAll(
-                                  album.tracks,
-                                ),
-                                success: 'Альбом добавлен в загрузки',
-                              ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
+                );
+              },
+            ),
+          ],
         ),
       ],
     ),

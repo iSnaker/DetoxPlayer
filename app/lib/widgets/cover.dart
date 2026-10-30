@@ -22,7 +22,7 @@ class Cover extends StatelessWidget {
   Widget build(BuildContext context) {
     final side = expand ? double.infinity : size;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(expand ? 8 : 4),
+      borderRadius: BorderRadius.circular(expand ? 20 : 10),
       child: Image.network(
         api.resolve(track.coverUrl).toString(),
         headers: api.headers,
@@ -33,9 +33,25 @@ class Cover extends StatelessWidget {
         errorBuilder: (_, _, _) => SizedBox(
           width: side,
           height: side,
-          child: ColoredBox(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: Icon(Icons.music_note, size: expand ? size / 3 : null),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Theme.of(context).colorScheme.secondaryContainer,
+                  Theme.of(context).colorScheme.surfaceContainerHighest,
+                ],
+              ),
+            ),
+            child: Center(
+              child: Icon(
+                Icons.music_note_rounded,
+                size: expand ? size / 3 : 24,
+                color: Theme.of(context).colorScheme.secondary
+                    .withValues(alpha: 0.65),
+              ),
+            ),
           ),
         ),
       ),

@@ -1,3 +1,5 @@
+import '../design/brand.dart';
+
 import 'package:flutter/material.dart';
 
 import '../app_services.dart';
@@ -15,7 +17,7 @@ class ArtistsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Исполнители')),
+    appBar: libraryAppBar(context, 'Исполнители'),
     body: ListenableBuilder(
       listenable: services.library,
       builder: (context, _) {

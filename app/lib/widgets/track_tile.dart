@@ -65,7 +65,7 @@ class TrackTile extends StatelessWidget {
       return ListTile(
         selected: active,
         selectedColor: scheme.onPrimaryContainer,
-        selectedTileColor: scheme.primaryContainer,
+        selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.40),
         leading: Cover(api: services.api, track: track, size: 48),
         title: Text(
           track.displayTitle,
@@ -104,6 +104,7 @@ class TrackTile extends StatelessWidget {
               ),
             PopupMenuButton<_TrackAction>(
               tooltip: 'Действия',
+              icon: const Icon(Icons.more_horiz_rounded),
               onSelected: (action) => _onAction(context, action),
               itemBuilder: (_) => [
                 const PopupMenuItem(

@@ -1,3 +1,5 @@
+import '../design/brand.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -44,31 +46,43 @@ class _TracksPageState extends State<TracksPage> {
     builder: (context, _) {
       final visible = _s.library.search(_query);
       return Scaffold(
-        appBar: AppBar(
-          title: TextField(
-            controller: _search,
-            onChanged: _onSearchChanged,
-            decoration: const InputDecoration(
-              hintText: 'Поиск',
-              border: InputBorder.none,
-              prefixIcon: Icon(Icons.search),
-            ),
-          ),
+        appBar: libraryAppBar(
+          context,
+          'Моя музыка',
           actions: [
             IconButton(
               tooltip: 'Перемешать и играть',
-              icon: const Icon(Icons.shuffle),
+              icon: const Icon(Icons.shuffle_rounded),
               onPressed: visible.isEmpty
                   ? null
                   : () => _s.player.playShuffled(visible),
             ),
+            const SizedBox(width: 12),
           ],
-          bottom: _s.library.syncing
-              ? const PreferredSize(
-                  preferredSize: Size.fromHeight(2),
-                  child: LinearProgressIndicator(minHeight: 2),
-                )
-              : null,
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(72),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _search,
+                    onChanged: _onSearchChanged,
+                    decoration: const InputDecoration(
+                      hintText: 'Найти свою музыку',
+                      prefixIcon: Icon(Icons.search_rounded),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                  if (_s.library.syncing)
+                    const LinearProgressIndicator(minHeight: 2),
+                ],
+              ),
+            ),
+          ),
         ),
         body: _body(visible),
       );
@@ -111,7 +125,9 @@ class _TracksPageState extends State<TracksPage> {
           child: visible.isEmpty
               ? const Center(child: Text('Ничего не найдено'))
               : ListView.builder(
-                  itemExtent: 72,
+                  itemExtent: MediaQuery.textScalerOf(context).scale(16) > 22
+                      ? 94
+                      : 76,
                   itemCount: visible.length,
                   itemBuilder: (context, i) => TrackTile(
                     services: _s,

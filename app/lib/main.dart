@@ -1,3 +1,6 @@
+import 'design/detox_theme.dart';
+import 'design/brand.dart';
+
 import 'dart:async';
 
 import 'diagnostics/runtime_diagnostics.dart';
@@ -14,7 +17,7 @@ import 'screens/home_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.detox.detox_player.playback',
+    androidNotificationChannelId: 'com.snapix.detoxplayer.playback',
     androidNotificationChannelName: 'Воспроизведение',
     androidNotificationOngoing: true,
   );
@@ -35,13 +38,10 @@ class DetoxApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'DetoxPlayer',
-    theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
-    darkTheme: ThemeData(
-      colorSchemeSeed: Colors.teal,
-      brightness: Brightness.dark,
-      useMaterial3: true,
-    ),
+    title: 'Detox Player',
+    theme: DetoxTheme.light(),
+    darkTheme: DetoxTheme.dark(),
+    debugShowCheckedModeBanner: false,
     home: const Root(),
   );
 }
@@ -89,7 +89,7 @@ class _RootState extends State<Root> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const BrandSplash();
     }
     final api = _api;
     if (api == null) {

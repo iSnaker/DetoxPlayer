@@ -58,3 +58,7 @@ Validation: `flutter analyze --no-pub` clean, `flutter test --no-pub` 33 passing
 tests, Android debug APK built without embedded test credentials. Native iOS
 build and background behavior on real phones remain unverified in this change.
 See [device test scenarios and Mac steps](../docs/mobile-validation.md).
+
+## Design and branding
+
+The avocado theme, native icons, splash screens and compact/full player are documented in [design.md](../docs/design.md). Android application ID is now `com.snapix.detoxplayer`; this is a separate installation from the previous package.
